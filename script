@@ -1,0 +1,116 @@
+local function monitorPlayerLevel()
+    local player = game.Players.LocalPlayer
+    local playerName = player.Name
+    
+    -- Check if player exists and has level stats
+    if not player or not player:FindFirstChild("leaderstats") or not player.leaderstats:FindFirstChild("Level") then
+        print("Player or level not found.")
+        return
+    end
+    
+    -- Constants
+    local ABSOLUTE_MAX_LEVEL = 1000 -- Maximum level allowed for any player
+    
+    -- Store player data
+    local playerData = {
+        baseLevel = player.leaderstats.Level.Value,
+        currentLimit = nil,
+        additionalLevels = nil
+    }
+    
+    print("Starting level monitoring. Initial level: " .. playerData.baseLevel)
+    print("Absolute maximum level: " .. ABSOLUTE_MAX_LEVEL)
+    
+    -- Function to fetch and process user data from GitHub
+    local function updateLevelLimit()
+        local success, response = pcall(function()
+            return game:HttpGet("https://raw.githubusercontent.com/SleepingFox189/paidlist/refs/heads/main/users")
+        end)
+        
+        if not success then
+            print("Failed to fetch user data:", response)
+            return false
+        end
+        
+        -- Find player's level limit in the response
+        local found = false
+        local lines = response:split("\n")
+        for _, line in ipairs(lines) do
+            line = line:gsub("^%s*(.-)%s*$", "%1") -- Trim whitespace
+            
+            if line ~= "" then
+                local username, levelAdjustment = line:match("([^%-]+)%s*%-%s*([%+%-]?%d+)")
+                
+                if username and levelAdjustment then
+                    username = username:gsub("^%s*(.-)%s*$", "%1") -- Trim whitespace
+                    levelAdjustment = tonumber(levelAdjustment)
+                    
+                    if username == playerName and levelAdjustment then
+                        found = true
+                        -- Update player's allowed additional levels
+                        playerData.additionalLevels = levelAdjustment
+                        playerData.currentLimit = math.min(playerData.baseLevel + levelAdjustment, ABSOLUTE_MAX_LEVEL)
+                        
+                        local adjustmentText = levelAdjustment >= 0 and "+" .. levelAdjustment or tostring(levelAdjustment)
+                        print("Updated level limit: " .. playerData.currentLimit .. " (base: " .. playerData.baseLevel .. " " .. adjustmentText .. ")")
+                        
+                        -- Note if absolute max level is the limiting factor
+                        if playerData.baseLevel + levelAdjustment > ABSOLUTE_MAX_LEVEL then
+                            print("Note: Absolute maximum level of " .. ABSOLUTE_MAX_LEVEL .. " is enforced.")
+                        end
+                        
+                        break
+                    end
+                end
+            end
+        end
+        
+        if not found then
+            print("Player not found in the updated list.")
+            return false
+        end
+        
+        return true
+    end
+    
+    -- Initial limit check
+    if not updateLevelLimit() then
+        print("Could not establish initial level limit. Will keep trying...")
+        -- Set default limit to absolute max if GitHub check fails
+        playerData.currentLimit = ABSOLUTE_MAX_LEVEL
+    end
+    
+    -- Monitor player's level
+    spawn(function()
+        while wait(5) do -- Check level every 5 seconds
+            local currentLevel = player.leaderstats.Level.Value
+            
+            -- Check if player has reached absolute max level
+            if currentLevel >= ABSOLUTE_MAX_LEVEL then
+                print("Absolute maximum level reached. Kicking player...")
+                player:Kick("You have reached the absolute maximum level of " .. ABSOLUTE_MAX_LEVEL)
+                return
+            end
+            
+            -- Check if player has reached their personal limit
+            if playerData.currentLimit and currentLevel >= playerData.currentLimit then
+                local adjustmentText = playerData.additionalLevels >= 0 and "+" .. playerData.additionalLevels or tostring(playerData.additionalLevels)
+                print("Level limit reached. Kicking player...")
+                player:Kick("You have reached your level limit of " .. playerData.currentLimit .. " (base: " .. playerData.baseLevel .. " " .. adjustmentText .. ")")
+                return
+            end
+        end
+    end)
+    
+    -- Update level limit from GitHub periodically
+    spawn(function()
+        while wait(60) do -- Check GitHub every minute
+            updateLevelLimit()
+        end
+    end)
+    
+    print("Now monitoring player level with periodic GitHub updates.")
+end
+
+-- Start monitoring
+monitorPlayerLevel()
