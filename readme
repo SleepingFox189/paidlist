@@ -1,0 +1,20 @@
+# How to Add or Remove Levels in the GitHub File
+
+## Adding Levels
+To give a player more levels:
+1. Find their name in the file
+2. Increase the number after their name
+3. Example: Change `PlayerName - 100` to `PlayerName - 300` (gives 200 more levels)
+
+## Removing Levels
+To reduce a player's levels:
+1. Find their name in the file 
+2. Decrease the number after their name
+3. Example: Change `PlayerName - 500` to `PlayerName - 200` (removes 300 levels)
+
+## Setting Negative Limits
+To force a player below their current level:
+1. Add a minus sign to the number
+2. Example: `PlayerName - -50` (they'll be kicked if they're 50 levels above their starting point)
+
+Remember: No player can exceed level 1000 regardless of what's in the file.
